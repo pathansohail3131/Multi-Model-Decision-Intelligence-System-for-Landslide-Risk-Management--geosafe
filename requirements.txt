@@ -1,0 +1,58 @@
+# =============================================================================
+# Pinned dependencies — landslide susceptibility & decision intelligence
+# =============================================================================
+# Every version below is pinned exactly, and this set was resolved and
+# verified together  (Python 3.12, linux-x86_64).
+#
+# Why exact pins rather than ranges:
+# The previous version of this project shipped no requirements file at all.
+# Its saved models became unloadable once the local scikit-learn and CatBoost
+# versions moved on, because pickled estimators embed class layouts that do not
+# survive a major version bump. A susceptibility model you cannot load is a
+# susceptibility model you cannot defend, so the lockfile is treated as part of
+# the deliverable rather than as packaging hygiene.
+#
+# Install:
+#     pip install -r requirements.txt
+#
+# Verify:
+#     python run_pipeline.py check
+#
+# NOTE: TensorFlow/Keras are deliberately absent. The previous architecture
+# included an ANN base learner; the rebuilt design uses gradient-boosted trees
+# on thematic feature subsets instead, which removes a ~600 MB dependency and
+# a substantial source of nondeterminism.
+# -----------------------------------------------------------------------------
+
+# --- core numerics -----------------------------------------------------------
+numpy==2.4.4
+pandas==3.0.2
+scipy==1.17.1
+
+# --- machine learning --------------------------------------------------------
+scikit-learn==1.8.0
+xgboost==3.2.0
+catboost==1.2.10
+# Used only for the SMOTE arm of the class-imbalance comparison in Stage 3.
+# Resampling is applied strictly inside the CV fold; see docs/methodology.md.
+imbalanced-learn==0.14.2
+
+# --- interpretability --------------------------------------------------------
+shap==0.51.0
+
+# --- geospatial --------------------------------------------------------------
+# rasterio carries its own GDAL wheels; no system GDAL install is required.
+rasterio==1.4.4
+geopandas==1.1.4
+shapely==2.1.2
+pyproj==3.7.2
+
+# --- plumbing ----------------------------------------------------------------
+PyYAML==6.0.3
+joblib==1.5.3
+
+# --- visualisation -----------------------------------------------------------
+matplotlib==3.10.9
+
+# --- testing -----------------------------------------------------------------
+pytest==8.4.2

@@ -1,0 +1,277 @@
+---
+# =============================================================================
+# Landslide Susceptibility & Decision Intelligence — default configuration
+# =============================================================================
+# This file is machine-independent and IS tracked in git.
+#
+# Machine-specific values (chiefly `paths.data_root`) belong in
+# `config/config.local.yaml`, which is gitignored and deep-merged over this
+# file at load time. An environment variable `LANDSLIDE_DATA_ROOT` overrides
+# both. See `config/config.local.yaml.example`.
+#
+# Rationale: the previous version of this project hardcoded `D:\MMDIS\` inside
+# notebook cells, so the pipeline ran on exactly one machine. The rule here is
+# that NO absolute path may appear in any file under `src/`. Every path is
+# either relative to the project root or derived from a single configurable
+# `data_root`.
+# =============================================================================
+
+project:
+  name: landslide-risk-uttara-kannada
+  region: Uttara Kannada district, Karnataka, India
+  # Fixed seed propagated to python, numpy and every model. See src/utils/seeds.py.
+  random_seed: 42
+
+paths:
+  # Root of the validated data assets (the `data/` directory containing
+  # final/, processed/, raw/ and samples/).
+  #
+  # Resolution order, first match wins:
+  #   1. environment variable  LANDSLIDE_DATA_ROOT
+  #   2. paths.data_root in    config/config.local.yaml
+  #   3. paths.data_root here  (relative to project root)
+  #
+  # The default below assumes the data lives inside the project. If your data
+  # sits elsewhere (the usual case), set it in config.local.yaml instead of
+  # editing this line — that keeps this file portable.
+  data_root: data
+
+  # All of the following are relative to data_root.
+  training_csv: final/training_dataset_final.csv
+  processed_dir: processed
+  raw_dir: raw
+  samples_dir: samples
+  boundary_shapefile: raw/boundary/uttara_kannada_boundary.shp
+  inventory_shapefile: samples/uttara_kannada_landslides_verified.shp
+  roads_shapefile: processed/roads_uk.shp
+  lithology_classes: processed/lithology_classes.json
+
+  # All of the following are relative to the project root and are created on
+  # demand by src/config.py.
+  outputs_dir: outputs
+  models_dir: outputs/models
+  rasters_dir: outputs/rasters
+  figures_dir: outputs/figures
+  reports_dir: outputs/reports
+  logs_dir: outputs/logs
+
+# -----------------------------------------------------------------------------
+# Raster grid
+# -----------------------------------------------------------------------------
+# Verified against the delivered assets on 2026-09-13. Stage 1 asserts every
+# conditioning-factor raster matches these values exactly and fails loudly
+# otherwise — silent misalignment is the single most destructive failure mode
+# in raster ML, because it produces a plausible-looking but meaningless map.
+grid:
+  crs: EPSG:32643            # WGS84 / UTM zone 43N
+  width: 3738
+  height: 5554
+  resolution_m: 30.46253464981975
+  # (left, bottom, right, top) in CRS units (metres)
+  bounds: [397835.3986, 1539148.5, 511704.35, 1708337.4146]
+  # Expected count of in-district (non-nodata) pixels, used as a sanity check.
+  # 10,929,202 px x 30.4625 m^2 = 10,142 km^2 vs the district's official
+  # 10,291 km^2 — a 1.4% shortfall consistent with coastline clipping.
+  expected_valid_pixels: 10929202
+
+# -----------------------------------------------------------------------------
+# Conditioning factors -> raster filenames (relative to data_root/processed)
+# -----------------------------------------------------------------------------
+# NOTE: nodata is NOT declared here. Each raster carries its own nodata value
+# (-9999 on the GDAL-derived layers, -32768 on the WhiteboxTools-derived
+# hydrological layers) and the loader reads it per file. Hardcoding one value
+# would write garbage into the map wherever the other convention is used.
+rasters:
+  elevation: dem_uk_utm.tif
+  slope: slope_uk.tif
+  aspect: aspect_uk.tif
+  plan_curv: plan_curv_uk.tif
+  profile_curv: profile_curv_uk.tif
+  TWI: TWI_uk.tif
+  SPI: SPI_uk.tif
+  dist_drainage: dist_to_drainage.tif
+  dist_road: dist_to_road.tif
+  dist_fault: dist_to_fault.tif
+  NDVI: NDVI_uk_aligned.tif
+  LULC: LULC_uk_aligned.tif
+  lithology: lithology_uk.tif
+  # The processed dir holds both rainfall_uk_aligned.tif and
+  # rainfall_uk_5yr_avg_aligned.tif. The brief specifies the 5-year average.
+  # Stage 1 verifies which one the training CSV was actually sampled from.
+  rainfall: rainfall_uk_5yr_avg_aligned.tif
+
+# -----------------------------------------------------------------------------
+# Features
+# -----------------------------------------------------------------------------
+features:
+  target: label
+  coord_columns: [X, Y]
+
+  # Columns that must NEVER reach a model. `taluk` and `slide_name` are
+  # populated only on positive samples (NaN on all 4,523 negatives), so either
+  # one is a perfect label leak. They are retained in the dataframe for
+  # reporting and are blocked here rather than dropped.
+  forbidden_columns: [taluk, slide_name, sample_id, X, Y]
+
+  categorical: [lithology, LULC]
+
+  # Aspect is circular: 359 deg and 1 deg are adjacent, not opposite. Encoding
+  # it as a scalar tells the model north is maximally distant from north.
+  circular: [aspect]
+
+  # Cells with slope == 0 have no defined aspect; GDAL emits a literal 270.0
+  # for them (61 such rows in the training set). sin/cos of that would inject
+  # a fake due-west signal into flat terrain, so flat cells are flagged and
+  # their aspect components zeroed. This adds a 16th model feature to the 15
+  # implied by the brief; the justification is in docs/methodology.md.
+  flat_slope_tolerance: 0.0
+
+  # SPI spans four orders of magnitude (max 2,250,643; skew 46.3).
+  # log1p brings skew to 1.29.
+  log1p_transform: [SPI]
+
+  # Sentinel for absent GLiM lithology coverage. It is NOT random missingness:
+  # the 157 affected samples form a coastal strip (mean elevation 45 m vs
+  # 414 m district-wide) with a 27.4% landslide rate against an 8.4% baseline.
+  # Treated as an explicit named category rather than dropped or imputed.
+  lithology_unmapped_code: -1
+  lithology_unmapped_label: unmapped_coastal_gap
+
+# -----------------------------------------------------------------------------
+# Thematic feature subsets — the core of the multi-model design
+# -----------------------------------------------------------------------------
+# Diversity comes from the data view, not the algorithm. Each thematic model
+# sees one physical theme and is genuinely blind to the others, which produces
+# real error decorrelation instead of the assumed diversity that made the
+# previous five-algorithm stack fail (0.9225 stacked vs 0.9329 CatBoost alone).
+#
+# Names on the right are POST-ENCODING feature names, resolved by
+# src/features/themes.py.
+themes:
+  topographic:
+    factors: [elevation, slope, aspect, plan_curv, profile_curv]
+    features: [elevation, slope, aspect_sin, aspect_cos, is_flat, plan_curv, profile_curv]
+  hydrological:
+    factors: [TWI, SPI, dist_drainage, rainfall]
+    features: [TWI, SPI_log, dist_drainage, rainfall]
+  geological:
+    factors: [lithology, dist_fault]
+    features: [lithology, dist_fault]
+  anthropogenic:
+    factors: [dist_road, LULC, NDVI]
+    features: [dist_road, LULC, NDVI]
+
+# The full-feature model is the performance benchmark the ensemble is measured
+# against. It is NOT a thematic member and never contributes to the
+# disagreement/confidence calculation.
+benchmark_model:
+  name: full
+  features: all
+
+# -----------------------------------------------------------------------------
+# Cross-validation
+# -----------------------------------------------------------------------------
+cross_validation:
+  n_splits: 5
+  # Spatial block side length in metres. `auto` derives it from the empirical
+  # autocorrelation range of the target in Stage 3 rather than guessing.
+  block_size_m: auto
+  # Floor for the derived block size. 86 of 417 positives sit within 100 m of
+  # another positive (minimum separation 0.65 m), so blocks must comfortably
+  # exceed that clustering scale.
+  block_size_min_m: 2000
+  # Random (non-spatial) CV is run alongside purely to quantify the optimism
+  # that spatial autocorrelation injects. It is never used for model selection.
+  report_random_cv: true
+
+# -----------------------------------------------------------------------------
+# Class imbalance — 417 positives vs 4,523 negatives (1:10.8)
+# -----------------------------------------------------------------------------
+# Strategies are compared empirically in Stage 3; the winner is recorded in
+# docs/methodology.md with its evidence. Any resampling must happen INSIDE the
+# CV fold, never before splitting.
+imbalance:
+  strategies: [none, class_weight, scale_pos_weight, smote_in_fold]
+  selected: null      # filled in by Stage 3 from measured results
+
+# -----------------------------------------------------------------------------
+# Operating threshold
+# -----------------------------------------------------------------------------
+# Not 0.5. A missed landslide zone costs far more than an unnecessary survey,
+# so the threshold is chosen from an explicit cost ratio and reported alongside
+# the F2-optimal and Youden alternatives for comparison.
+threshold:
+  cost_false_negative: 10
+  cost_false_positive: 1
+  method: cost_minimising
+  report_alternatives: [f2_optimal, youden, precision_floor]
+  precision_floor: 0.25
+  selected: null      # filled in by Stage 5 from measured results
+
+# -----------------------------------------------------------------------------
+# Metrics — AUC-PR leads. Under 1:10.8 imbalance a model can post a strong
+# AUC-ROC while being close to useless at any usable operating point.
+# -----------------------------------------------------------------------------
+metrics:
+  primary: average_precision
+  report: [roc_auc, average_precision, f1, recall, precision, cohen_kappa]
+
+# -----------------------------------------------------------------------------
+# Decision layer (Stage 8)
+# -----------------------------------------------------------------------------
+decision:
+  rainfall:
+    # No rainfall time series exists for this district in the delivered assets
+    # (only a 5-year climatological average raster), so the intensity-duration
+    # threshold CANNOT be calibrated locally. It is implemented as a
+    # parameterised component seeded with published values and is explicitly
+    # labelled uncalibrated in every output it touches.
+    calibrated: false
+    source: published_regional_thresholds
+    # I = alpha * D^(-beta), I in mm/h, D in hours.
+    alpha: 15.0
+    beta: 0.44
+    durations_h: [6, 12, 24, 48, 72]
+
+  exposure:
+    # Roads and LULC built-up are the only exposure layers present in the
+    # delivered assets. No census settlement layer exists. Resolution is 30 m,
+    # so "settlement" here means built-up land cover, not buildings.
+    sources: [roads, lulc_builtup]
+    lulc_builtup_class: 50
+    road_buffer_m: [100, 250, 500]
+    weights:
+      roads: 0.6
+      lulc_builtup: 0.4
+
+  nisar:
+    # Post-hoc activity multiplier slot. Deliberately NOT a training feature:
+    # NISAR observations postdate the inventory, so using them as a predictor
+    # would introduce temporal leakage and force a full retrain on every new
+    # acquisition. As a multiplier applied after inference, a deformation
+    # raster can be dropped in with no retraining at all.
+    enabled: false
+    raster: null
+    multiplier_range: [1.0, 1.5]
+
+# -----------------------------------------------------------------------------
+# Inference
+# -----------------------------------------------------------------------------
+inference:
+  # The grid is 3738 x 5554 = 20,760,852 pixels. A 16-band float32 feature
+  # stack would be ~1.25 GB in memory, which is what blocked the previous
+  # attempt at generating a district raster. Inference is therefore windowed:
+  # bands are read per block and discarded, so peak memory stays bounded.
+  block_height: 512
+  block_width: 3738
+  output_dtype: float32
+  nodata: -9999.0
+  compress: DEFLATE
+  predictor: 3
+  tiled: true
+
+logging:
+  level: INFO
+  format: "%(asctime)s | %(levelname)-8s | %(name)-28s | %(message)s"
+  date_format: "%Y-%m-%d %H:%M:%S"
+  to_file: true

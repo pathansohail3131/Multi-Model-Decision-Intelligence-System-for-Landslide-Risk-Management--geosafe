@@ -1,0 +1,103 @@
+# =============================================================================
+# .gitignore — landslide susceptibility & decision intelligence
+# =============================================================================
+# Principle: the repository holds code, configuration and documentation. Data
+# and generated artefacts are reproducible from those three, so they are not
+# tracked. The previous version committed model binaries and training
+# artefacts, which is how it ended up with duplicate model files whose
+# provenance nobody could reconstruct.
+
+# --- machine-specific configuration ------------------------------------------
+# Holds this machine's data_root. Never commit it; config.local.yaml.example
+# documents the format instead.
+config/config.local.yaml
+
+# --- data ---------------------------------------------------------------------
+# The delivered data assets are large (a single conditioning-factor raster is
+# ~83 MB; the GLiM lithology geodatabase is >1 GB) and are validated inputs
+# managed outside this repository.
+data/
+*.tif
+*.tiff
+*.vrt
+*.img
+*.shp
+*.shx
+*.dbf
+*.prj
+*.cpg
+*.sbn
+*.sbx
+*.gdb/
+*.gpkg
+
+# --- generated artefacts ------------------------------------------------------
+outputs/
+!outputs/.gitkeep
+
+# Model bundles and their attached preprocessing.
+*.pkl
+*.joblib
+*.cbm
+*.ubj
+*.onnx
+
+# --- python -------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# --- environments -------------------------------------------------------------
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+.conda/
+
+# --- testing & type checking ---------------------------------------------------
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+.hypothesis/
+.mypy_cache/
+.dmypy.json
+.ruff_cache/
+
+# --- notebooks ----------------------------------------------------------------
+# Checkpoints only. Notebooks themselves are tracked, but they are exploration
+# artefacts and are never part of the pipeline.
+.ipynb_checkpoints/
+*/.ipynb_checkpoints/*
+
+# --- editors & OS -------------------------------------------------------------
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+desktop.ini

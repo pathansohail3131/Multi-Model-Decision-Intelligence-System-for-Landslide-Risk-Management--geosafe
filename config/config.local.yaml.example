@@ -1,0 +1,53 @@
+---
+# =============================================================================
+# Machine-specific configuration — EXAMPLE
+# =============================================================================
+# Copy this file to `config/config.local.yaml` and edit it:
+#
+#     cp config/config.local.yaml.example config/config.local.yaml
+#
+# `config.local.yaml` is gitignored. It is deep-merged over `config.yaml` at
+# load time, so you only need the keys you want to change — everything else
+# falls through to the tracked defaults.
+#
+# Precedence for the data root, first match wins:
+#   1. environment variable  LANDSLIDE_DATA_ROOT
+#   2. this file
+#   3. config/config.yaml
+#
+# Verify your setup with:
+#
+#     python run_pipeline.py check
+# =============================================================================
+
+paths:
+  # Absolute path to the directory containing final/, processed/, raw/ and
+  # samples/. Forward slashes work on Windows too, and avoid the backslash
+  # escaping problems that YAML introduces.
+  #
+  # Windows example:
+  #   data_root: "C:/Users/you/Documents/landslide-data/data"
+  # macOS / Linux example:
+  #   data_root: "/home/you/landslide-data/data"
+  data_root: "CHANGE/ME/path/to/data"
+
+# ---------------------------------------------------------------------------
+# Anything else from config.yaml may be overridden here for local runs.
+# A few that are commonly useful:
+# ---------------------------------------------------------------------------
+
+# Lower the inference block height on a memory-constrained machine.
+# inference:
+#   block_height: 256
+
+# Turn on the NISAR post-hoc activity multiplier once a deformation raster is
+# available. No retraining is required — the multiplier is applied after
+# inference.
+# decision:
+#   nisar:
+#     enabled: true
+#     raster: "nisar/deformation_velocity_uk.tif"
+
+# Quieter or louder logs.
+# logging:
+#   level: DEBUG
