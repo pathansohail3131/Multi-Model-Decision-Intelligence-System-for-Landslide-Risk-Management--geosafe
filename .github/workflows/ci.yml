@@ -1,0 +1,59 @@
+name: CI
+
+# The data assets and trained models live outside the repository, so CI
+# validates what a clean checkout can: syntax, imports, configuration, the
+# ensemble rules and class logic, and the frontend build. Tests that need
+# bundles or rasters skip themselves (see docs/testing.md).
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  python:
+    name: Python — compile, import, tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt -r requirements-api.txt
+
+      - name: Byte-compile every module
+        run: python -m compileall -q api src tests scripts run_pipeline.py
+
+      - name: Import the API application
+        run: python -c "from api.app.main import app; print(len(app.routes), 'routes')"
+
+      - name: Run tests
+        run: python -m pytest tests -q
+
+  frontend:
+    name: Frontend — typecheck and build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Type-check
+        run: npx tsc -p tsconfig.app.json --noEmit
+
+      - name: Build
+        run: npm run build

@@ -39,12 +39,41 @@ from rasterio.windows import Window
 
 from src.features.themes import BENCHMARK_NAME
 from src.models.bundle import load_bundle
-from src.models.combiners import confidence_from_disagreement, disagreement
+from src.models.combiners import (
+    confidence_from_disagreement,
+    disagreement,
+    full_plus_thematic_mean,
+)
 from src.utils.logging_setup import get_logger
 
-__all__ = ["run_inference_stage", "predict_district"]
+__all__ = ["run_inference_stage", "predict_district", "susceptibility_classes"]
 
 logger = get_logger(__name__)
+
+
+def susceptibility_classes(threshold: float) -> dict[str, tuple[float, float]]:
+    """Susceptibility classes used for area reporting, keyed by class name.
+
+    The boundary between ``moderate`` and ``high`` is the derived operating
+    threshold, so "high" always means "flagged at the operating point".
+
+    Parameters
+    ----------
+    threshold : float
+        The Stage 5 operating threshold.
+
+    Returns
+    -------
+    dict
+        Class name mapped to its half-open ``[low, high)`` range.
+    """
+    return {
+        "very_low": (0.0, 0.05),
+        "low": (0.05, 0.10),
+        "moderate": (0.10, threshold),
+        "high": (threshold, 0.40),
+        "very_high": (0.40, 1.01),
+    }
 
 
 def _open_sources(cfg, factors=None) -> dict[str, rasterio.DatasetReader]:
@@ -247,7 +276,7 @@ def predict_district(
                     )
                     if use_full_model:
                         full = bundles[BENCHMARK_NAME].predict_proba(subset)
-                        combined = 0.5 * (full + thematic.mean(axis=1))
+                        combined = full_plus_thematic_mean(full, thematic)
                     else:
                         combined = thematic.mean(axis=1)
                     spread = disagreement(thematic, "std")
@@ -406,13 +435,7 @@ def run_inference_stage(cfg, allow_partial: bool = True) -> dict:
     cell_km2 = res_x * res_y / 1e6
 
     threshold = float(summary["threshold"])
-    classes = {
-        "very_low": (0.0, 0.05),
-        "low": (0.05, 0.10),
-        "moderate": (0.10, threshold),
-        "high": (threshold, 0.40),
-        "very_high": (0.40, 1.01),
-    }
+    classes = susceptibility_classes(threshold)
     breakdown = {}
     for name, (low, high) in classes.items():
         count = int(((values >= low) & (values < high)).sum())

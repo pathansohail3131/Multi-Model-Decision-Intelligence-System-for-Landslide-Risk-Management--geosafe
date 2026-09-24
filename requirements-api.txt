@@ -1,0 +1,15 @@
+# =============================================================================
+# Prediction API for the interactive simulator
+# =============================================================================
+# Installed on top of requirements.txt. The API adds no modelling of its own; it
+# serves the bundles the pipeline trains.
+#
+#     pip install -r requirements.txt -r requirements-api.txt
+# -----------------------------------------------------------------------------
+fastapi==0.136.1
+uvicorn==0.46.0
+pydantic==2.13.3
+# District map thumbnails are encoded as PNG.
+pillow==12.2.0
+# Used by FastAPI's TestClient in tests/test_api.py.
+httpx==0.28.0

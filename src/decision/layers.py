@@ -43,9 +43,18 @@ __all__ = [
     "rainfall_scenarios",
     "build_exposure_raster",
     "run_decision_stage",
+    "QUADRANT_INTERPRETATION",
 ]
 
 logger = get_logger(__name__)
+
+#: What each cell of the planner's susceptibility x confidence table means.
+QUADRANT_INTERPRETATION = {
+    "act_now": "High susceptibility, themes agree — commit mitigation.",
+    "survey_first": "High susceptibility, themes disagree — send a survey team before committing.",
+    "monitor": "Low susceptibility but uncertain — keep under review.",
+    "deprioritise": "Low susceptibility, themes agree — lowest call on resources.",
+}
 
 
 # ---------------------------------------------------------------------------
@@ -386,12 +395,7 @@ def run_decision_stage(cfg) -> dict:
         "confidence_split": round(conf_split, 4),
         "pixels": quadrants,
         "area_km2": {k: round(v * cell_km2, 1) for k, v in quadrants.items()},
-        "interpretation": {
-            "act_now": "High susceptibility, themes agree — commit mitigation.",
-            "survey_first": "High susceptibility, themes disagree — send a survey team before committing.",
-            "monitor": "Low susceptibility but uncertain — keep under review.",
-            "deprioritise": "Low susceptibility, themes agree — lowest call on resources.",
-        },
+        "interpretation": dict(QUADRANT_INTERPRETATION),
     }
     logger.info("Planner quadrants (km2):")
     for key, value in report["decision_quadrants"]["area_km2"].items():

@@ -1,0 +1,24 @@
+[project]
+name = "landslide-decision-intelligence"
+version = "1.0.0"
+description = "Landslide susceptibility and decision intelligence for Uttara Kannada: thematic CatBoost ensemble, district rasters, prediction API and 3D simulator."
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "Proprietary" }
+
+# Dependencies are pinned in requirements.txt (pipeline) and
+# requirements-api.txt (HTTP service). They are intentionally not duplicated
+# here: the exact set was resolved together, and a second, looser declaration
+# is how a lockfile quietly stops being the source of truth.
+
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests"]
+addopts = "-q --strict-markers"
+markers = [
+    "slow: tests that load model bundles or read rasters",
+]
+filterwarnings = [
+    "ignore::DeprecationWarning:astroid.*",
+    "ignore:Using `httpx` with `starlette.testclient`:DeprecationWarning",
+]

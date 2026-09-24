@@ -1,0 +1,197 @@
+/* --------------------------------------------------------------- scenario */
+.source-card {
+  display: grid;
+  gap: 8px;
+  padding: 10px 11px;
+  border: 1px solid var(--line-2);
+  border-radius: var(--radius);
+  background: var(--panel-2);
+}
+
+.source-card__label {
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.source-card__detail {
+  font-size: 11.5px;
+  color: var(--text-3);
+}
+
+.source-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.source-actions .btn {
+  justify-content: flex-start;
+  width: 100%;
+}
+
+.source-actions .btn--wide {
+  grid-column: 1 / -1;
+}
+
+/* ----------------------------------------------------------- theme groups */
+.theme-group {
+  border-bottom: 1px solid var(--line);
+}
+
+.theme-group__head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 16px 8px;
+  background: var(--panel);
+}
+
+.theme-group__name {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.theme-group__metric {
+  margin-left: auto;
+  font-size: 10.5px;
+  color: var(--text-3);
+  white-space: nowrap;
+}
+
+.theme-group__body {
+  display: grid;
+  gap: 2px;
+  padding: 0 8px 10px;
+}
+
+.control {
+  display: grid;
+  gap: 4px;
+  padding: 7px 8px 8px;
+  border: 1px solid transparent;
+  border-radius: var(--radius);
+  transition:
+    background 160ms ease,
+    border-color 160ms ease;
+}
+
+.control:hover {
+  background: rgba(255, 255, 255, 0.015);
+}
+
+.control.is-active {
+  border-color: var(--line-2);
+  background: var(--panel-2);
+}
+
+.control.has-error {
+  border-color: rgba(214, 90, 69, 0.5);
+  background: var(--danger-soft);
+}
+
+.control__row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.control__label {
+  flex: 1;
+  min-width: 0;
+  font-size: 12.5px;
+  font-weight: 500;
+  color: var(--text);
+}
+
+.control__unit {
+  color: var(--text-3);
+  font-weight: 400;
+}
+
+.control__value {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  width: 132px;
+  flex: none;
+}
+
+.control__value .field-input {
+  text-align: right;
+  min-width: 0;
+}
+
+.control__suffix {
+  flex: none;
+  width: 42px;
+  font-size: 10.5px;
+  color: var(--text-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.control__track {
+  position: relative;
+}
+
+.control__tick {
+  position: absolute;
+  top: 12px;
+  width: 1px;
+  height: 7px;
+  background: var(--text-3);
+  pointer-events: none;
+}
+
+.control__tick--landslide {
+  background: #d9793a;
+}
+
+.control__hint {
+  font-size: 11px;
+  color: var(--text-3);
+}
+
+.control__hint .tick-key {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  margin: 0 3px 0 1px;
+  border-radius: 1px;
+  vertical-align: 0;
+}
+
+.control__warning {
+  font-size: 11px;
+  color: #e8c98c;
+}
+
+.control__error {
+  font-size: 11px;
+  color: #f0b3a8;
+}
+
+.control__description {
+  font-size: 11.5px;
+  color: var(--text-2);
+  padding: 6px 8px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-raised);
+}
+
+fieldset.controls-fieldset {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+}
+
+fieldset.controls-fieldset:disabled .control {
+  opacity: 0.6;
+}

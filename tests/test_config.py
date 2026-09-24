@@ -124,16 +124,20 @@ def test_local_config_overrides_base(config_dir: Path, clean_env):
     assert cfg.theme_names == ["topographic", "hydrological"]
 
 
-def test_merge_is_deep_not_shallow(config_dir: Path, clean_env):
+def test_merge_is_deep_not_shallow(config_dir: Path, tmp_path: Path, clean_env):
     """Overriding one nested key must not wipe its siblings."""
-    local = {"paths": {"data_root": "/elsewhere"}}
+    # Built from tmp_path so the path is fully absolute on every platform: a
+    # bare "/elsewhere" carries no drive on Windows, which would make this a
+    # test of path anchoring rather than of the merge.
+    elsewhere = (tmp_path / "elsewhere").resolve()
+    local = {"paths": {"data_root": str(elsewhere)}}
     (config_dir / "config.local.yaml").write_text(
         yaml.safe_dump(local, sort_keys=False), encoding="utf-8"
     )
     cfg = load_config(config_dir)
-    assert cfg.data_root == Path("/elsewhere")
+    assert cfg.data_root == elsewhere
     # training_csv came from the base file and must have survived the merge.
-    assert cfg.training_csv == Path("/elsewhere/final/training_dataset_final.csv")
+    assert cfg.training_csv == elsewhere / "final" / "training_dataset_final.csv"
 
 
 def test_lists_are_replaced_not_concatenated(config_dir: Path, clean_env):

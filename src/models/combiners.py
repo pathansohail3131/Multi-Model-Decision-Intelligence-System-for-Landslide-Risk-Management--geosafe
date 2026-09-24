@@ -28,6 +28,7 @@ __all__ = [
     "rank_average_combine",
     "noisy_or_combine",
     "max_combine",
+    "full_plus_thematic_mean",
 ]
 
 
@@ -156,6 +157,30 @@ COMBINERS = {
     "thematic_noisy_or": noisy_or_combine,
     "thematic_max": max_combine,
 }
+
+
+def full_plus_thematic_mean(full: np.ndarray, thematic: np.ndarray) -> np.ndarray:
+    """The adopted production score: the full model blended with the themes.
+
+    ``0.5 * (full + mean(thematic))`` on calibrated probabilities. Adopted in
+    Stage 4 because it gives up 0.0024 AUC-PR against the full model alone
+    while still producing the disagreement signal (``docs/results.md`` §5).
+    Shared by district inference and the prediction API so the two cannot
+    drift apart.
+
+    Parameters
+    ----------
+    full : numpy.ndarray, shape (n_samples,)
+        Calibrated probabilities from the full-feature benchmark.
+    thematic : numpy.ndarray, shape (n_samples, n_models)
+        Calibrated probabilities from the thematic models.
+
+    Returns
+    -------
+    numpy.ndarray
+        Production susceptibility per sample.
+    """
+    return 0.5 * (np.asarray(full) + np.asarray(thematic).mean(axis=1))
 
 
 def combine(
