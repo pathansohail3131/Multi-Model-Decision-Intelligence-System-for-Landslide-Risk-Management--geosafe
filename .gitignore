@@ -16,7 +16,7 @@ config/config.local.yaml
 # The delivered data assets are large (a single conditioning-factor raster is
 # ~83 MB; the GLiM lithology geodatabase is >1 GB) and are validated inputs
 # managed outside this repository.
-data/
+/data/
 *.tif
 *.tiff
 *.vrt
