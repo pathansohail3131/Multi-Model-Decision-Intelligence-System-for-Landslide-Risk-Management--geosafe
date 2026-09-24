@@ -92,6 +92,12 @@ htmlcov/
 .ipynb_checkpoints/
 */.ipynb_checkpoints/*
 
+# --- simulator frontend -------------------------------------------------------
+# Dependencies and build output are reproducible from package-lock.json.
+frontend/node_modules/
+frontend/dist/
+*.tsbuildinfo
+
 # --- editors & OS -------------------------------------------------------------
 .vscode/
 .idea/
