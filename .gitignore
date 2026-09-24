@@ -1,5 +1,5 @@
-# =============================================================================
-# .gitignore — landslide susceptibility & decision intelligence
+﻿# =============================================================================
+# .gitignore â€” landslide susceptibility & decision intelligence
 # =============================================================================
 # Principle: the repository holds code, configuration and documentation. Data
 # and generated artefacts are reproducible from those three, so they are not
