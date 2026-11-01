@@ -106,12 +106,21 @@ global effect. `points` ∈ [5, 81].
 ### `GET /api/samples/random?label=0|1`
 
 One real row from the training data, with a note that the models have seen it,
-so its score is not an independent test.
+so its score is not an independent test. Includes [`place`](#place-names) for
+the row's coordinate.
 
 ### `GET /api/district/meta`
 
-Grid (CRS, bounds, thumbnail size), available layers, and the projected
-coordinates of the 417 recorded landslides.
+Grid (CRS, bounds, thumbnail size), available layers, the projected coordinates
+of the 417 recorded landslides, and `taluks`: the 11 taluk outlines in EPSG:32643.
+
+```json
+{ "taluks": [{ "name": "Ankola", "rings": [[[432100, 1610250], "..."]], "label": [445120, 1621800] }] }
+```
+
+`rings` lists every polygon ring, holes included, so fill with the even-odd rule.
+`label` is a point inside the taluk for placing its name. The list is empty when
+the place data is unavailable.
 
 ### `GET /api/district/image/{layer}.png`
 
@@ -121,8 +130,32 @@ coordinates of the 417 recorded landslides.
 
 Reads all 14 rasters at a coordinate in EPSG:32643 (UTM 43N) — the same values
 district inference uses. Returns the factors, latitude/longitude, distance to
-the nearest recorded landslide, and any `issues` (outside the grid, nodata, or
-a value outside physical limits).
+the nearest recorded landslide, any `issues` (outside the grid, nodata, or a
+value outside physical limits), and [`place`](#place-names).
+
+### Place names
+
+`place` names a coordinate for display. The models never see it, and it does not
+affect any score. It is `null` when the place data is unavailable.
+
+```json
+{ "village": "Shirur", "inside_village": true, "is_town": false, "taluk": "Ankola",
+  "district": "Uttara Kannada", "state": "Karnataka",
+  "nearest_town": { "name": "Ankola", "distance_m": 9100.0, "direction_from_town": "SE" },
+  "label": "Shirur", "sublabel": "Ankola taluk, Uttara Kannada" }
+```
+
+| `label` | When |
+|---|---|
+| `<village>` | Inside a village polygon |
+| `<village> town` | Inside a census town (`is_town`) |
+| `Near <village>` | Outside every village, within 3 km of one (`inside_village` is `false`) |
+| `<taluk> taluk` | Inside a taluk, more than 3 km from any village |
+| `Outside mapped villages` | None of the above, such as at sea (`taluk` is `null`) |
+
+`direction_from_town` is the 8-point compass direction of the point as seen from
+the town. Sources and simplification are in
+[`api/app/data/places/README.md`](../api/app/data/places/README.md).
 
 ---
 

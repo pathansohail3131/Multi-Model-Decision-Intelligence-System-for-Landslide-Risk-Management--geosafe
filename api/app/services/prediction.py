@@ -21,6 +21,7 @@ import pandas as pd
 
 from api.app.core.errors import ServiceError, ServiceNotReady
 from api.app.schemas.factors import CATEGORICAL, CATEGORY_LEVELS, FACTORS, SHAP_SOURCE_FACTOR
+from api.app.services.places import get_place_index
 from src.data.loaders import load_training_data
 from src.decision.layers import QUADRANT_INTERPRETATION
 from src.features.themes import BENCHMARK_NAME
@@ -716,6 +717,7 @@ class PredictionService:
             value = float(row[factor])
             factors[factor] = int(round(value)) if factor in CATEGORICAL else value
         taluk = row.get("taluk")
+        places = get_place_index()
         return {
             "sample_id": int(row["sample_id"]),
             "label": int(row["label"]),
@@ -725,6 +727,7 @@ class PredictionService:
             "factors": factors,
             "note": "This point is part of the training data, so the models have seen it. "
             "Its score is not an independent test of the model.",
+            "place": places.lookup(float(row["X"]), float(row["Y"])) if places else None,
         }
 
     def landslide_points(self) -> np.ndarray | None:

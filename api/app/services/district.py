@@ -16,6 +16,7 @@ import rasterio
 from rasterio.enums import Resampling
 
 from api.app.schemas.factors import CATEGORICAL, FACTORS
+from api.app.services.places import get_place_index
 from src.data.loaders import sample_raster_at_points
 from src.utils.logging_setup import get_logger
 
@@ -172,12 +173,14 @@ class DistrictService:
     # ------------------------------------------------------------------
     def meta(self) -> dict:
         points = self.prediction.landslide_points()
+        places = get_place_index()
         return {
             "status": self.status,
             "error": self.error,
             "grid": self._grid,
             "layers": self._layers,
             "landslides": points.round(1).tolist() if points is not None else [],
+            "taluks": places.taluk_outlines() if places else [],
         }
 
     def image(self, layer: str) -> bytes | None:
@@ -198,9 +201,11 @@ class DistrictService:
     def sample(self, x: float, y: float) -> dict:
         """Read the 14 conditioning factors at a projected coordinate."""
         cfg = self.cfg
+        places = get_place_index()
+        place = places.lookup(x, y) if places else None
         left, bottom, right, top = cfg.get("grid", "bounds")
         if not (left <= x <= right and bottom <= y <= top):
-            return {"inside": False, "x": x, "y": y, "factors": None, "missing": [], "issues": ["Outside the district grid."]}
+            return {"inside": False, "x": x, "y": y, "factors": None, "missing": [], "issues": ["Outside the district grid."], "place": place}
 
         factors: dict = {}
         missing = []
@@ -242,4 +247,5 @@ class DistrictService:
             "issues": issues,
             "nearest_landslide_m": nearest,
             "landslides_within_1km": within_1km,
+            "place": place,
         }
