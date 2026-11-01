@@ -12,6 +12,7 @@ import type {
   SimulationError,
   SimulationPhase,
 } from '../types/simulation';
+import { sourcePlace } from '../utils/place';
 import { FACTOR_ELEMENT } from '../utils/sceneMapping';
 import { medianScenario, sameScenario } from '../utils/scenario';
 
@@ -113,7 +114,7 @@ export const useSimulationStore = create<SimulationState>()((set, get) => ({
     const source: ScenarioSource =
       state.source?.kind === 'custom'
         ? state.source
-        : { kind: 'custom', label: 'Custom scenario', basedOn: state.source?.label ?? 'median' };
+        : { kind: 'custom', label: 'Custom scenario', basedOn: state.source?.label ?? 'median', place: sourcePlace(state.source) };
     const matchesResult = state.result && state.metadata && sameScenario(state.metadata, state.result.inputs, inputs);
     set({
       inputs,

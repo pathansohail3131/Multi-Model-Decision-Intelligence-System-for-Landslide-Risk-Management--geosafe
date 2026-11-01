@@ -1,4 +1,4 @@
-import type { FactorName, InputFeatures, PredictionResponse, ThemeName, TrainingSample, DistrictSample } from './api';
+import type { FactorName, InputFeatures, Place, PredictionResponse, ThemeName, TrainingSample, DistrictSample } from './api';
 
 /** Application states. They drive both the interface and the 3D scene. */
 export type SimulationPhase =
@@ -25,7 +25,7 @@ export type ScenarioSource =
   | { kind: 'median'; label: string }
   | { kind: 'training'; label: string; sample: TrainingSample }
   | { kind: 'district'; label: string; site: DistrictSample }
-  | { kind: 'custom'; label: string; basedOn: string };
+  | { kind: 'custom'; label: string; basedOn: string; place?: Place | null };
 
 /** One completed, real model run. */
 export interface RunRecord {

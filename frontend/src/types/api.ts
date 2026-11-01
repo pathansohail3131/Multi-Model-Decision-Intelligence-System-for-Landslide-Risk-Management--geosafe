@@ -220,6 +220,24 @@ export interface SensitivityResponse {
   range_basis: string;
 }
 
+export interface Place {
+  village: string | null;
+  inside_village: boolean;
+  is_town: boolean;
+  taluk: string | null;
+  district: string;
+  state: string;
+  nearest_town: { name: string; distance_m: number; direction_from_town: string } | null;
+  label: string;
+  sublabel: string;
+}
+
+export interface TalukOutline {
+  name: string;
+  rings: [number, number][][];
+  label: [number, number];
+}
+
 export interface TrainingSample {
   sample_id: number;
   label: 0 | 1;
@@ -228,6 +246,7 @@ export interface TrainingSample {
   y: number;
   factors: InputFeatures;
   note: string;
+  place?: Place | null;
 }
 
 export interface DistrictMeta {
@@ -236,6 +255,7 @@ export interface DistrictMeta {
   grid: { crs: string; bounds: [number, number, number, number]; image_size: [number, number] } | null;
   layers: Record<string, { label: string; source: string; partial?: boolean }>;
   landslides: [number, number][];
+  taluks?: TalukOutline[];
 }
 
 export interface DistrictSample {
@@ -249,6 +269,7 @@ export interface DistrictSample {
   issues: string[];
   nearest_landslide_m?: number | null;
   landslides_within_1km?: number | null;
+  place?: Place | null;
 }
 
 export interface ApiErrorBody {
