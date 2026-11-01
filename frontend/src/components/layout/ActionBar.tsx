@@ -96,7 +96,7 @@ export function ActionBar({ onRun }: { onRun: () => void }) {
           className="btn"
           onClick={beginReset}
           disabled={running || phase === 'resetting' || backend.status !== 'ready'}
-          title="Restore the training-median scenario and clear the current result"
+          title="Restore the typical values and clear the current result"
         >
           <ResetIcon />
           <span className="btn__label">Reset</span>

@@ -1,15 +1,12 @@
 import { useState } from 'react';
 import { ApiError, predictionApi } from '../../services/predictionApi';
 import { isRunningPhase, useSimulationStore } from '../../store/simulationStore';
+import type { PlaceHit } from '../../types/api';
 import { formatDistance, formatLatLon } from '../../utils/format';
-import { sourcePlace, townHint } from '../../utils/place';
-import { medianScenario } from '../../utils/scenario';
-import { DiceIcon, FlagIcon, MapIcon, PinIcon, TargetIcon } from '../common/Icons';
-
-const RECORDED_TOOLTIP =
-  'Loads one of 417 places where the Geological Survey of India recorded a landslide. The models saw this point in training, so this is a demonstration, not a test.';
-const NOT_RECORDED_TOOLTIP =
-  'Loads one of 4,519 sampled points with no recorded landslide, at least 101 m from any recorded one. No record does not mean the place is safe.';
+import { districtSource, sourcePlace, townHint } from '../../utils/place';
+import { HoverCard } from '../common/HoverCard';
+import { DiceIcon, FlagIcon, MapIcon, PinIcon } from '../common/Icons';
+import { PlaceSearch } from '../common/PlaceSearch';
 
 export function ScenarioSource() {
   const source = useSimulationStore((s) => s.source);
@@ -18,6 +15,7 @@ export function ScenarioSource() {
   const applyScenario = useSimulationStore((s) => s.applyScenario);
   const setDistrictOpen = useSimulationStore((s) => s.setDistrictOpen);
   const [loading, setLoading] = useState<0 | 1 | null>(null);
+  const [applying, setApplying] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const disabled = isRunningPhase(phase) || !metadata;
 
@@ -38,8 +36,22 @@ export function ScenarioSource() {
     }
   };
 
+  const applyPlace = async (hit: PlaceHit) => {
+    setApplying(true);
+    setError(null);
+    try {
+      const site = await predictionApi.districtSample(hit.x, hit.y);
+      if (site.factors && site.issues.length === 0) applyScenario(site.factors, districtSource(site));
+      else setError(`${hit.name} cannot be scored here. ${site.issues[0] ?? ''}`.trim());
+    } catch (err) {
+      setError(err instanceof ApiError ? err.message : 'Could not read that place.');
+    } finally {
+      setApplying(false);
+    }
+  };
+
   let detail = '';
-  if (source?.kind === 'median') detail = 'Reference point built from training-data medians — not a real location.';
+  if (source?.kind === 'median') detail = 'Middle value of each factor. Search a place, pick one on the map or load a recorded landslide.';
   if (source?.kind === 'training') {
     const s = source.sample;
     detail = `${s.label === 1 ? 'Recorded landslide' : 'No recorded landslide'}${!s.place && s.taluk ? ` · ${s.taluk} taluk` : ''}. ${s.note}`;
@@ -53,15 +65,7 @@ export function ScenarioSource() {
   if (source?.kind === 'custom') detail = `Edited from: ${source.basedOn}.`;
 
   const place = sourcePlace(source);
-  const placeDetail = place
-    ? [
-        place.sublabel,
-        townHint(place),
-        source?.kind === 'district' ? formatLatLon(source.site.lat, source.site.lon) : '',
-      ]
-        .filter(Boolean)
-        .join(' · ')
-    : '';
+  const hint = place ? townHint(place) : '';
 
   return (
     <section className="section" aria-labelledby="scenario-title">
@@ -71,6 +75,7 @@ export function ScenarioSource() {
         </h2>
       </div>
       <div className="source-card">
+        <PlaceSearch onPick={(hit) => void applyPlace(hit)} disabled={disabled || applying} busy={applying} />
         <div>
           <p className="source-card__label">{source?.label ?? '—'}</p>
           {place && (
@@ -78,7 +83,7 @@ export function ScenarioSource() {
               <PinIcon />
               <div>
                 <strong>{place.label}</strong>
-                <span>{placeDetail}</span>
+                <span>{hint ? `${place.sublabel} · ${hint}` : place.sublabel}</span>
               </div>
             </div>
           )}
@@ -88,20 +93,16 @@ export function ScenarioSource() {
           <button type="button" className="btn btn--wide" disabled={disabled} onClick={() => setDistrictOpen(true)}>
             <MapIcon /> Pick a real site on the district map
           </button>
-          <button type="button" className="btn btn--sm btn--wide" title={RECORDED_TOOLTIP} disabled={disabled || loading !== null} onClick={() => loadSample(1)}>
-            {loading === 1 ? <span className="spinner" /> : <FlagIcon />} Recorded landslide (GSI)
-          </button>
-          <button type="button" className="btn btn--sm btn--wide" title={NOT_RECORDED_TOOLTIP} disabled={disabled || loading !== null} onClick={() => loadSample(0)}>
-            {loading === 0 ? <span className="spinner" /> : <DiceIcon />} No recorded landslide
-          </button>
-          <button
-            type="button"
-            className="btn btn--sm btn--wide"
-            disabled={disabled}
-            onClick={() => metadata && applyScenario(medianScenario(metadata), { kind: 'median', label: 'Training-data median' })}
-          >
-            <TargetIcon /> Training-data median
-          </button>
+          <HoverCard title="Recorded landslide" text="A real landslide spot from GSI records (1 of 417)" colour="#d9793a">
+            <button type="button" className="btn btn--sm" disabled={disabled || loading !== null} onClick={() => loadSample(1)}>
+              {loading === 1 ? <span className="spinner" /> : <FlagIcon />} Recorded landslide (GSI)
+            </button>
+          </HoverCard>
+          <HoverCard title="No recorded landslide" text="A spot with no landslide on record (1 of 4,519)" colour="#6fae8a">
+            <button type="button" className="btn btn--sm" disabled={disabled || loading !== null} onClick={() => loadSample(0)}>
+              {loading === 0 ? <span className="spinner" /> : <DiceIcon />} No recorded landslide
+            </button>
+          </HoverCard>
         </div>
         {error && (
           <p className="control__error" role="alert">

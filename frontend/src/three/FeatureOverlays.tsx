@@ -204,7 +204,7 @@ function OffBlockChip({ position, text }: { position: [number, number, number]; 
   );
 }
 
-/** Nameplate above the front edge of the block. The median is not a real place, so it has none. */
+/** Nameplate above the front edge of the block. The typical values are not a real place, so they have none. */
 function PlacePlaque({ params }: { params: SceneParams }) {
   const place = useSimulationStore((s) => sourcePlace(s.source));
   if (!place) return null;
@@ -255,7 +255,8 @@ export function FeatureOverlays() {
         inBlock={streamInBlock}
         build={buildStream}
         labelAt={(p) => {
-          const u = HALF_M - 90;
+          // Far enough up the channel to clear the nameplate on the front edge.
+          const u = HALF_M - 300;
           const v = streamCentre(u, p);
           return [v / M_PER_UNIT, heightAt(u, v, p) / M_PER_UNIT + 2, u / M_PER_UNIT];
         }}

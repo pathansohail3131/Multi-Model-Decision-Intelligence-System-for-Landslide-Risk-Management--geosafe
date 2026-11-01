@@ -101,7 +101,7 @@ export const useSimulationStore = create<SimulationState>()((set, get) => ({
     set({
       metadata,
       inputs: medianScenario(metadata),
-      source: { kind: 'median', label: 'Training-data median' },
+      source: { kind: 'median', label: 'Typical values' },
       phase: 'ready',
     }),
 
@@ -148,7 +148,7 @@ export const useSimulationStore = create<SimulationState>()((set, get) => ({
     if (!metadata) return;
     set({
       inputs: medianScenario(metadata),
-      source: { kind: 'median', label: 'Training-data median' },
+      source: { kind: 'median', label: 'Typical values' },
       result: null,
       fieldErrors: {},
       error: null,

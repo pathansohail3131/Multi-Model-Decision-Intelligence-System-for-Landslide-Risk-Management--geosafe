@@ -37,7 +37,7 @@ export function AnalysisContent() {
             No prediction yet. The analysis appears here once the real model has scored the scenario.
           </p>
           <ol>
-            <li>Choose a scenario — a real site from the district map, a recorded landslide, or the median.</li>
+            <li>Choose a scenario — search a place, pick a site on the district map, or load a recorded landslide.</li>
             <li>Adjust parameters and watch the site model respond.</li>
             <li>Press Run simulation to score it with the five calibrated models.</li>
           </ol>
