@@ -9,7 +9,9 @@ from __future__ import annotations
 
 import json
 import math
+import re
 import threading
+from difflib import SequenceMatcher
 from pathlib import Path
 
 import numpy as np
@@ -33,9 +35,18 @@ NEAR_VILLAGE_M = 3000.0
 
 COMPASS_8 = ("N", "NE", "E", "SE", "S", "SW", "W", "NW")
 
+#: Search results below this similarity are not offered as fuzzy matches.
+FUZZY_MIN_RATIO = 0.72
+#: Among equally good matches: towns, then taluks, then villages.
+KIND_ORDER = {"town": 0, "taluk": 1, "village": 2}
+
 
 def _features(path: Path) -> list[dict]:
     return json.loads(path.read_text(encoding="utf-8"))["features"]
+
+
+def _search_key(text: str) -> str:
+    return re.sub(r"[^a-z0-9]", "", text.lower())
 
 
 def _compass(dx: float, dy: float) -> str:
@@ -75,6 +86,69 @@ class PlaceIndex:
 
         self._town_names = [f["properties"]["name"] for f in towns]
         self._town_xy = np.array([f["geometry"]["coordinates"][:2] for f in towns], dtype="float64")
+        self._search_entries = self._build_search_entries()
+
+    def _build_search_entries(self) -> list[dict]:
+        """One entry per distinct name, kind and taluk. Census towns split into
+        several polygons collapse to one, and a headquarters point wins over them."""
+        candidates = []
+        for name, (x, y) in zip(self._town_names, self._town_xy):
+            taluk = self._taluk_at(shapely.Point(x, y))
+            candidates.append((name, "town", taluk, float(x), float(y)))
+        for name, geometry in zip(self._taluk_names, self._taluk_shapes):
+            point = geometry.representative_point()
+            candidates.append((name, "taluk", name, point.x, point.y))
+        for props, geometry in zip(self._villages, self._village_tree.geometries):
+            point = geometry.representative_point()
+            kind = "town" if props["town"] else "village"
+            candidates.append((props["village"], kind, props["taluk"], point.x, point.y))
+
+        entries: dict[tuple, dict] = {}
+        for name, kind, taluk, x, y in candidates:
+            key = _search_key(name)
+            entries.setdefault(
+                (key, kind, taluk),
+                {"key": key, "name": name, "kind": kind, "taluk": taluk, "x": round(x, 1), "y": round(y, 1)},
+            )
+        return list(entries.values())
+
+    def search(self, query: str, limit: int = 8) -> list[dict]:
+        """Find places by name: exact, starts-with, contains, then fuzzy.
+
+        Case, spaces and punctuation are ignored. Queries under 2 characters
+        return nothing.
+        """
+        q = _search_key(query)
+        if len(q) < 2:
+            return []
+
+        def order(entry: dict) -> tuple:
+            return len(entry["key"]), KIND_ORDER[entry["kind"]], entry["name"]
+
+        tiers: list[list[dict]] = [[], [], []]
+        rest = []
+        for entry in self._search_entries:
+            key = entry["key"]
+            if key == q:
+                tiers[0].append(entry)
+            elif key.startswith(q):
+                tiers[1].append(entry)
+            elif q in key:
+                tiers[2].append(entry)
+            else:
+                rest.append(entry)
+        ranked = [entry for tier in tiers for entry in sorted(tier, key=order)]
+
+        if len(ranked) < limit:
+            scored = []
+            for entry in rest:
+                ratio = SequenceMatcher(None, q, entry["key"]).ratio()
+                if ratio >= FUZZY_MIN_RATIO:
+                    scored.append((ratio, entry))
+            scored.sort(key=lambda item: (-item[0], *order(item[1])))
+            ranked.extend(entry for _, entry in scored)
+
+        return [{k: e[k] for k in ("name", "kind", "taluk", "x", "y")} for e in ranked[:limit]]
 
     def _nearest_town(self, x: float, y: float) -> dict | None:
         if not len(self._town_xy):

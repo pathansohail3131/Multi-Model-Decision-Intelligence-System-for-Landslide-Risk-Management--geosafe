@@ -95,6 +95,58 @@ def test_lookup_is_under_a_millisecond_on_average(index):
     assert (time.perf_counter() - started) / n < 0.001
 
 
+def test_search_finds_an_exact_name_first(index):
+    first = index.search("sirsi")[0]
+    assert first["name"] == "Sirsi"
+    assert first["kind"] == "town"
+    assert first["taluk"] == "Sirsi"
+
+
+def test_search_tolerates_a_misspelling(index):
+    assert index.search("sirisi")[0]["name"] == "Sirsi"
+    assert "Gokarn" in {hit["name"] for hit in index.search("gokarna")}
+
+
+def test_search_returns_both_taluk_and_town(index):
+    hits = index.search("ankola")
+    assert {"taluk", "town"} <= {hit["kind"] for hit in hits if hit["name"] == "Ankola"}
+
+
+def test_search_ignores_case_spaces_and_punctuation(index):
+    assert index.search("SIR-SI")[0]["name"] == "Sirsi"
+    assert "Joida (Supa)" in {hit["name"] for hit in index.search("joida supa")}
+
+
+def test_search_prefers_starts_with_over_contains(index):
+    names = [hit["name"].lower() for hit in index.search("shir")]
+    assert "shirur" in names
+    assert all(name.startswith("shir") for name in names)
+
+
+def test_search_rejects_nonsense_and_short_queries(index):
+    assert index.search("zzzz") == []
+    assert index.search("s") == []
+    assert index.search(" - ") == []
+
+
+def test_search_points_lie_in_the_named_taluk(index):
+    for hit in index.search("shirur"):
+        assert index.lookup(hit["x"], hit["y"])["taluk"] == hit["taluk"]
+
+
+def test_search_endpoint():
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+
+    from api.app.routers import places_router
+
+    app = FastAPI()
+    app.include_router(places_router)
+    client = TestClient(app)
+    assert client.get("/api/places/search", params={"q": "sirisi"}).json()[0]["name"] == "Sirsi"
+    assert client.get("/api/places/search", params={"q": "s"}).json() == []
+
+
 def test_missing_data_returns_none_and_does_not_raise(monkeypatch, tmp_path):
     monkeypatch.setattr(places_module, "_index", None)
     monkeypatch.setattr(places_module, "_loaded", False)

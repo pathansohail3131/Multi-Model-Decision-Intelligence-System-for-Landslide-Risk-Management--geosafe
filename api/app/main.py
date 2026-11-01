@@ -19,7 +19,7 @@ from fastapi.staticfiles import StaticFiles
 from api.app.core.config import settings
 from api.app.core.errors import Utf8JSONResponse, register_exception_handlers
 from api.app.dependencies import cfg, district_service, prediction_service
-from api.app.routers import district_router, health_router, prediction_router
+from api.app.routers import district_router, health_router, places_router, prediction_router
 from src.utils.logging_setup import configure_logging, get_logger
 
 __all__ = ["app", "create_app"]
@@ -64,6 +64,7 @@ def create_app() -> FastAPI:
     application.include_router(health_router)
     application.include_router(prediction_router)
     application.include_router(district_router)
+    application.include_router(places_router)
 
     # Mounted last: StaticFiles at "/" would otherwise shadow the API routes.
     if settings.frontend_dist.exists():

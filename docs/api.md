@@ -157,6 +157,22 @@ affect any score. It is `null` when the place data is unavailable.
 the town. Sources and simplification are in
 [`api/app/data/places/README.md`](../api/app/data/places/README.md).
 
+### `GET /api/places/search?q=&limit=`
+
+Finds villages, towns and taluks by name, for the search bars. Case, spaces and
+punctuation are ignored. Results rank exact, then starts-with, then contains,
+then fuzzy (similarity of at least 0.72), so `sirisi` finds Sirsi and `gokarna`
+finds Gokarn. A query under 2 characters returns `[]`, as does a server without
+the place data. `limit` is 1 to 20, default 8.
+
+```json
+[{ "name": "Sirsi", "kind": "town", "taluk": "Sirsi", "x": 494512.0, "y": 1616120.0 }]
+```
+
+`kind` is `village`, `town` or `taluk`. `x` and `y` are in EPSG:32643: the
+headquarters point for a taluk headquarters town, otherwise a point inside the
+polygon. Pass them to `/api/district/sample` to read that location.
+
 ---
 
 ## Requirements
