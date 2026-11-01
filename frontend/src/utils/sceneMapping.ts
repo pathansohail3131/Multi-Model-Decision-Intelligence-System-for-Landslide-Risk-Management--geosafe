@@ -96,7 +96,7 @@ export const SCENE_MAPPING: MappingRow[] = [
   { factor: 'profile_curv', element: 'Concave or convex along the slope', rule: 'Normalised to the training range; negative drawn as concave', scaled: 'qualitative' },
   { factor: 'TWI', element: 'Soil wetness around the cell', rule: 'Darkening ranked between the 5th and 99th training percentile', scaled: 'qualitative' },
   { factor: 'SPI', element: 'Gully incision below the cell', rule: 'Depth ranked on log(SPI) above the training median', scaled: 'qualitative' },
-  { factor: 'dist_drainage', element: 'Stream channel', rule: 'Offset across the slope by the distance; direction is not known', scaled: 'position schematic' },
+  { factor: 'dist_drainage', element: 'Stream / river channel', rule: 'Offset across the slope by the distance; direction is not known', scaled: 'position schematic' },
   { factor: 'rainfall', element: 'Rain density', rule: 'Ranked across the training range; animation is illustrative', scaled: 'qualitative' },
   { factor: 'lithology', element: 'Rock strata on the cutaway', rule: 'Pattern per GLiM class', scaled: 'qualitative' },
   { factor: 'dist_fault', element: 'Lineament trace', rule: 'Placed at the distance; orientation is not known', scaled: 'position schematic' },

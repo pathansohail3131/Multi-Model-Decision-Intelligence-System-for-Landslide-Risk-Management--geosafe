@@ -6,6 +6,7 @@ import { useSimulationStore } from '../store/simulationStore';
 import type { FactorName } from '../types/api';
 import type { Lens, SceneElement } from '../types/simulation';
 import { formatDistance } from '../utils/format';
+import { sourcePlace, townHint } from '../utils/place';
 import { THEME_ELEMENTS, toSceneParams, type SceneParams } from '../utils/sceneMapping';
 import { useRuntime } from './runtime';
 import {
@@ -199,6 +200,24 @@ function OffBlockChip({ position, text }: { position: [number, number, number]; 
   );
 }
 
+/** Nameplate above the front edge of the block. The median is not a real place, so it has none. */
+function PlacePlaque({ params }: { params: SceneParams }) {
+  const place = useSimulationStore((s) => sourcePlace(s.source));
+  if (!place) return null;
+  const hint = townHint(place);
+  return (
+    <group position={[0, heightAt(HALF_M, 0, params) / M_PER_UNIT + 5.2, HALF + 1]}>
+      <Html center zIndexRange={[25, 0]} pointerEvents="none">
+        <div className="place-plaque">
+          <span className="place-plaque__eyebrow">This block · 1.2 km around the cell</span>
+          <strong>{place.label}</strong>
+          <span className="place-plaque__sub">{hint ? `${place.sublabel} · ${hint}` : place.sublabel}</span>
+        </div>
+      </Html>
+    </group>
+  );
+}
+
 export function FeatureOverlays() {
   const inputs = useSimulationStore((s) => s.inputs);
   const metadata = useSimulationStore((s) => s.metadata);
@@ -212,6 +231,7 @@ export function FeatureOverlays() {
 
   return (
     <group>
+      <PlacePlaque params={target} />
       <Overlay
         element="road"
         factor="dist_road"
@@ -225,7 +245,7 @@ export function FeatureOverlays() {
       <Overlay
         element="stream"
         factor="dist_drainage"
-        colour="#3a7896"
+        colour="#2f8fd8"
         halfWidthM={5}
         inBlock={streamInBlock}
         build={buildStream}
@@ -234,7 +254,7 @@ export function FeatureOverlays() {
           const v = streamCentre(u, p);
           return [v / M_PER_UNIT, heightAt(u, v, p) / M_PER_UNIT + 2, u / M_PER_UNIT];
         }}
-        label={`Stream · ${formatDistance(stream)}`}
+        label={`Stream / river · ${formatDistance(stream)}`}
         transparent
       />
       <Overlay
@@ -251,7 +271,7 @@ export function FeatureOverlays() {
         <OffBlockChip position={[0, edgeY(-HALF_M, 0), -HALF - 1]} text={`↑ Road ${formatDistance(road)} away`} />
       )}
       {!streamInBlock(target) && (
-        <OffBlockChip position={[HALF + 1, edgeY(0, HALF_M), 0]} text={`Stream ${formatDistance(stream)} away →`} />
+        <OffBlockChip position={[HALF + 1, edgeY(0, HALF_M), 0]} text={`Stream / river ${formatDistance(stream)} away →`} />
       )}
       {!faultInBlock(target) && (
         <OffBlockChip position={[-HALF - 1, edgeY(-HALF_M * 0.6, -HALF_M), -HALF * 0.6]} text={`← Lineament ${formatDistance(fault)} away`} />

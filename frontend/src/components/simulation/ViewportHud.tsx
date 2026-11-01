@@ -31,7 +31,7 @@ const HOVER_FACTORS: Record<SceneElement, FactorName[]> = {
 const HOVER_TITLE: Record<SceneElement, string> = {
   site: 'Assessed 30 m cell',
   terrain: 'Hillslope',
-  stream: 'Stream channel',
+  stream: 'Stream / river channel (blue)',
   road: 'Road bench',
   fault: 'Lineament trace',
   strata: 'Rock strata',
@@ -144,6 +144,29 @@ function MappingPopover({ onClose }: { onClose: () => void }) {
   );
 }
 
+const SCENE_KEY = [
+  { key: 'stream', label: 'Stream / river', tip: 'Blue ribbon: the nearest stream or river. Its distance from the cell is drawn to scale; its direction is not known.' },
+  { key: 'road', label: 'Road', tip: 'Grey band: the nearest road, placed at its distance from the cell.' },
+  { key: 'fault', label: 'Lineament', tip: 'Rust line: a DEM-derived structural lineament, a proxy rather than a mapped fault.' },
+  { key: 'cell', label: 'Assessed cell', tip: 'White diamond: the 30 m cell the models score.' },
+  { key: 'vegetation', label: 'Vegetation', tip: 'Green dots: land cover and NDVI at the cell.' },
+  { key: 'strata', label: 'Rock layers', tip: 'Stripes on the block sides: the lithology at the cell.' },
+  { key: 'rain', label: 'Rain', tip: 'Diagonal streaks: mean annual rainfall at the cell, drawn qualitatively.' },
+];
+
+function SceneKey() {
+  return (
+    <ul className="scene-key" aria-label="Scene colour key">
+      {SCENE_KEY.map((item) => (
+        <li key={item.key} title={item.tip}>
+          <span className={`scene-key__swatch scene-key__swatch--${item.key}`} aria-hidden="true" />
+          {item.label}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 function Legend() {
   const result = useSimulationStore((s) => s.result);
   const metadata = useSimulationStore((s) => s.metadata);
@@ -176,6 +199,7 @@ function Legend() {
         ) : (
           <div>Drag to orbit, scroll to zoom. Hover an element to see the parameter behind it.</div>
         )}
+        <SceneKey />
       </div>
     </div>
   );
