@@ -1,7 +1,8 @@
-import type { Place, TalukOutline } from '../types/api';
+import type { DistrictSample, Place, TalukOutline } from '../types/api';
 import type { ScenarioSource } from '../types/simulation';
+import { formatLatLon } from './format';
 
-/** The place a scenario came from. The training-data median has none. */
+/** The place a scenario came from. The typical-values start has none. */
 export function sourcePlace(source: ScenarioSource | null | undefined): Place | null {
   if (source?.kind === 'training') return source.sample.place ?? null;
   if (source?.kind === 'district') return source.site.place ?? null;
@@ -21,6 +22,12 @@ export function townHint(place: Place): string {
 export function shortPlace(place: Place): string {
   if (!place.taluk || place.label === `${place.taluk} taluk`) return place.label;
   return `${place.label}, ${place.taluk} taluk`;
+}
+
+/** The scenario source for a sampled district site. */
+export function districtSource(site: DistrictSample): ScenarioSource {
+  const where = site.place ? shortPlace(site.place) : formatLatLon(site.lat, site.lon);
+  return { kind: 'district', label: `District site · ${where}`, site };
 }
 
 /** Even-odd test across all rings, so separate parts and holes both work. */

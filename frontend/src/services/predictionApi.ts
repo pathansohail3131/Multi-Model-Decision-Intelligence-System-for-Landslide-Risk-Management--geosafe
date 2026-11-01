@@ -4,6 +4,7 @@ import type {
   DistrictSample,
   HealthResponse,
   ModelMetadata,
+  PlaceHit,
   PredictionRequest,
   PredictionResponse,
   SensitivityRequest,
@@ -175,5 +176,7 @@ export const predictionApi = {
   districtMeta: () => request<DistrictMeta>('/api/district/meta', {}, isDistrictMeta),
   districtSample: (x: number, y: number) =>
     request<DistrictSample>(`/api/district/sample?x=${x.toFixed(1)}&y=${y.toFixed(1)}`, {}, isDistrictSample),
+  searchPlaces: (q: string) =>
+    request<PlaceHit[]>(`/api/places/search?q=${encodeURIComponent(q)}`, {}, (body): body is PlaceHit[] => Array.isArray(body)),
   districtImageUrl: (layer: string) => `${BASE}/api/district/image/${layer}.png`,
 };

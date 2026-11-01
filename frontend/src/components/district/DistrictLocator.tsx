@@ -1,11 +1,12 @@
 import { useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react';
 import { ApiError, predictionApi } from '../../services/predictionApi';
 import { useSimulationStore } from '../../store/simulationStore';
-import type { DistrictMeta, DistrictSample } from '../../types/api';
+import type { DistrictMeta, DistrictSample, PlaceHit } from '../../types/api';
 import { formatDistance, formatLatLon, formatNumber } from '../../utils/format';
-import { shortPlace, talukAt, townHint } from '../../utils/place';
+import { districtSource, talukAt, townHint } from '../../utils/place';
 import { levelLabel } from '../../utils/scenario';
 import { CrossIcon, PinIcon, WarnIcon } from '../common/Icons';
+import { PlaceSearch } from '../common/PlaceSearch';
 
 type MetaState = { status: 'loading' } | { status: 'error'; message: string } | { status: 'ready'; meta: DistrictMeta };
 
@@ -25,6 +26,8 @@ function LocatorDialog({ onClose }: { onClose: () => void }) {
   const [showTaluks, setShowTaluks] = useState(true);
   const [hoveredTaluk, setHoveredTaluk] = useState<string | null>(null);
   const talukTip = useRef<HTMLDivElement>(null);
+  const [pulsedTaluk, setPulsedTaluk] = useState<string | null>(null);
+  const pulseTimer = useRef<number | undefined>(undefined);
   const [site, setSite] = useState<DistrictSample | null>(null);
   const [sampling, setSampling] = useState(false);
   const [sampleError, setSampleError] = useState<string | null>(null);
@@ -72,6 +75,17 @@ function LocatorDialog({ onClose }: { onClose: () => void }) {
       previous?.focus();
     };
   }, [onClose]);
+
+  useEffect(() => () => window.clearTimeout(pulseTimer.current), []);
+
+  const onPlacePick = (hit: PlaceHit) => {
+    setEasting(hit.x.toFixed(0));
+    setNorthing(hit.y.toFixed(0));
+    setPulsedTaluk(hit.taluk);
+    window.clearTimeout(pulseTimer.current);
+    pulseTimer.current = window.setTimeout(() => setPulsedTaluk(null), 1800);
+    void sample(hit.x, hit.y);
+  };
 
   const sample = async (x: number, y: number) => {
     setSampling(true);
@@ -130,11 +144,7 @@ function LocatorDialog({ onClose }: { onClose: () => void }) {
 
   const applySite = () => {
     if (!site?.factors || site.issues.length) return;
-    applyScenario(site.factors, {
-      kind: 'district',
-      label: `District site · ${site.place ? shortPlace(site.place) : formatLatLon(site.lat, site.lon)}`,
-      site,
-    });
+    applyScenario(site.factors, districtSource(site));
     onClose();
   };
 
@@ -175,6 +185,10 @@ function LocatorDialog({ onClose }: { onClose: () => void }) {
           </button>
         </div>
 
+        <div className="modal__search">
+          <PlaceSearch onPick={onPlacePick} />
+        </div>
+
         <div className="modal__body">
           <div className="district-map">
             {metaState.status === 'loading' && (
@@ -202,7 +216,7 @@ function LocatorDialog({ onClose }: { onClose: () => void }) {
                     talukPaths.map((taluk) => (
                       <path
                         key={taluk.name}
-                        className={`taluk-outline${taluk.name === hoveredTaluk ? ' is-hovered' : ''}`}
+                        className={`taluk-outline${taluk.name === hoveredTaluk ? ' is-hovered' : ''}${taluk.name === pulsedTaluk ? ' is-pulsing' : ''}`}
                         d={taluk.d}
                         fillRule="evenodd"
                         vectorEffect="non-scaling-stroke"

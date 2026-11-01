@@ -232,6 +232,14 @@ export interface Place {
   sublabel: string;
 }
 
+export interface PlaceHit {
+  name: string;
+  kind: 'village' | 'town' | 'taluk';
+  taluk: string | null;
+  x: number;
+  y: number;
+}
+
 export interface TalukOutline {
   name: string;
   rings: [number, number][][];
