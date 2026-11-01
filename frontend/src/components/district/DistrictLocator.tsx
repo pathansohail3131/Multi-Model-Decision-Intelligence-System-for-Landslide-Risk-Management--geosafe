@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type MouseEvent as ReactMouseEvent } from 'react';
 import { ApiError, predictionApi } from '../../services/predictionApi';
 import { useSimulationStore } from '../../store/simulationStore';
 import type { DistrictMeta, DistrictSample } from '../../types/api';
 import { formatDistance, formatLatLon, formatNumber } from '../../utils/format';
+import { shortPlace, talukAt, townHint } from '../../utils/place';
 import { levelLabel } from '../../utils/scenario';
 import { CrossIcon, PinIcon, WarnIcon } from '../common/Icons';
 
@@ -21,6 +22,9 @@ function LocatorDialog({ onClose }: { onClose: () => void }) {
   const [metaState, setMetaState] = useState<MetaState>({ status: 'loading' });
   const [showLandslides, setShowLandslides] = useState(true);
   const [showSusceptibility, setShowSusceptibility] = useState(false);
+  const [showTaluks, setShowTaluks] = useState(true);
+  const [hoveredTaluk, setHoveredTaluk] = useState<string | null>(null);
+  const talukTip = useRef<HTMLDivElement>(null);
   const [site, setSite] = useState<DistrictSample | null>(null);
   const [sampling, setSampling] = useState(false);
   const [sampleError, setSampleError] = useState<string | null>(null);
@@ -83,13 +87,36 @@ function LocatorDialog({ onClose }: { onClose: () => void }) {
 
   const meta = metaState.status === 'ready' ? metaState.meta : null;
   const grid = meta?.grid ?? null;
+  const taluks = useMemo(() => meta?.taluks ?? [], [meta]);
+
+  const eventToGrid = (event: ReactMouseEvent<HTMLDivElement>) => {
+    const rect = event.currentTarget.getBoundingClientRect();
+    const [left, bottom, right, top] = grid!.bounds;
+    return {
+      x: left + ((event.clientX - rect.left) / rect.width) * (right - left),
+      y: top - ((event.clientY - rect.top) / rect.height) * (top - bottom),
+      px: event.clientX - rect.left,
+      py: event.clientY - rect.top,
+      flip: event.clientX - rect.left > rect.width * 0.6,
+    };
+  };
+
+  // The tooltip follows the pointer through its ref, so moving the mouse does
+  // not re-render the map; state changes only when the pointer crosses a boundary.
+  const onMapMove = (event: ReactMouseEvent<HTMLDivElement>) => {
+    if (!grid || !showTaluks) return;
+    const { x, y, px, py, flip } = eventToGrid(event);
+    setHoveredTaluk(talukAt(taluks, x, y));
+    if (talukTip.current) {
+      talukTip.current.style.left = `${px}px`;
+      talukTip.current.style.top = `${py}px`;
+      talukTip.current.style.transform = `translate(${flip ? 'calc(-100% - 12px)' : '12px'}, 12px)`;
+    }
+  };
 
   const onMapClick = (event: ReactMouseEvent<HTMLDivElement>) => {
     if (!grid) return;
-    const rect = event.currentTarget.getBoundingClientRect();
-    const [left, bottom, right, top] = grid.bounds;
-    const x = left + ((event.clientX - rect.left) / rect.width) * (right - left);
-    const y = top - ((event.clientY - rect.top) / rect.height) * (top - bottom);
+    const { x, y } = eventToGrid(event);
     setEasting(x.toFixed(0));
     setNorthing(y.toFixed(0));
     void sample(x, y);
@@ -105,11 +132,27 @@ function LocatorDialog({ onClose }: { onClose: () => void }) {
     if (!site?.factors || site.issues.length) return;
     applyScenario(site.factors, {
       kind: 'district',
-      label: `District site · ${formatLatLon(site.lat, site.lon)}`,
+      label: `District site · ${site.place ? shortPlace(site.place) : formatLatLon(site.lat, site.lon)}`,
       site,
     });
     onClose();
   };
+
+  const talukPaths = useMemo(() => {
+    if (!grid) return [];
+    const [left, bottom, right, top] = grid.bounds;
+    return taluks.map((taluk) => ({
+      name: taluk.name,
+      d: taluk.rings
+        .map(
+          (ring) =>
+            `M${ring
+              .map(([x, y]) => `${(((x - left) / (right - left)) * 100).toFixed(3)} ${(((top - y) / (top - bottom)) * 100).toFixed(3)}`)
+              .join('L')}Z`,
+        )
+        .join(''),
+    }));
+  }, [grid, taluks]);
 
   const susceptibilityLayer = meta?.layers.susceptibility;
   const marker = site ? toPercent(site.x, site.y) : null;
@@ -145,6 +188,8 @@ function LocatorDialog({ onClose }: { onClose: () => void }) {
                 className="district-map__frame"
                 style={{ ['--map-aspect' as string]: `${grid.image_size[0]} / ${grid.image_size[1]}` }}
                 onClick={onMapClick}
+                onMouseMove={onMapMove}
+                onMouseLeave={() => setHoveredTaluk(null)}
                 role="application"
                 aria-label="District map. Click to sample a location."
               >
@@ -153,6 +198,16 @@ function LocatorDialog({ onClose }: { onClose: () => void }) {
                   <img src={predictionApi.districtImageUrl('susceptibility')} alt="Model susceptibility map" draggable={false} />
                 )}
                 <svg viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+                  {showTaluks &&
+                    talukPaths.map((taluk) => (
+                      <path
+                        key={taluk.name}
+                        className={`taluk-outline${taluk.name === hoveredTaluk ? ' is-hovered' : ''}`}
+                        d={taluk.d}
+                        fillRule="evenodd"
+                        vectorEffect="non-scaling-stroke"
+                      />
+                    ))}
                   {showLandslides &&
                     meta?.landslides.map(([x, y], i) => {
                       const p = toPercent(x, y);
@@ -171,6 +226,18 @@ function LocatorDialog({ onClose }: { onClose: () => void }) {
                       );
                     })}
                 </svg>
+                {showTaluks &&
+                  taluks.map((taluk) => {
+                    const p = toPercent(taluk.label[0], taluk.label[1]);
+                    return (
+                      <span key={taluk.name} className="taluk-name" style={{ left: `${p.left}%`, top: `${p.top}%` }}>
+                        {taluk.name}
+                      </span>
+                    );
+                  })}
+                <div ref={talukTip} className="taluk-tip" hidden={!showTaluks || !hoveredTaluk}>
+                  {hoveredTaluk} taluk · click to sample
+                </div>
                 {marker && (
                   <PinIcon
                     style={{
@@ -208,6 +275,12 @@ function LocatorDialog({ onClose }: { onClose: () => void }) {
                   ? `District susceptibility map${susceptibilityLayer.partial ? ' (partial run)' : ''}`
                   : 'District susceptibility map — run pipeline stage 7 to produce it'}
               </label>
+              {taluks.length > 0 && (
+                <label className="toggle">
+                  <input type="checkbox" checked={showTaluks} onChange={(e) => setShowTaluks(e.target.checked)} />
+                  Taluk boundaries and names
+                </label>
+              )}
             </div>
 
             <form
@@ -241,7 +314,16 @@ function LocatorDialog({ onClose }: { onClose: () => void }) {
             {sampleError && <p className="notice notice--danger">{sampleError}</p>}
             {site && !sampling && (
               <div style={{ display: 'grid', gap: 10 }}>
-                {site.lat != null && <p className="source-card__label">{formatLatLon(site.lat, site.lon)}</p>}
+                {site.place ? (
+                  <div className="place-card">
+                    <strong>{site.place.label}</strong>
+                    <span>{site.place.sublabel}</span>
+                    {townHint(site.place) && <span>{townHint(site.place)}</span>}
+                    {site.lat != null && <small className="mono">{formatLatLon(site.lat, site.lon)}</small>}
+                  </div>
+                ) : (
+                  site.lat != null && <p className="source-card__label">{formatLatLon(site.lat, site.lon)}</p>
+                )}
                 {site.issues.map((issue) => (
                   <p key={issue} className="notice notice--warn">
                     <WarnIcon />
