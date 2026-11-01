@@ -109,10 +109,12 @@ interface OverlayProps {
   build: (p: SceneParams) => Sample[];
   labelAt: (p: SceneParams) => [number, number, number];
   label: string;
+  /** Html ignores its group's visibility, so a label off the block is not rendered at all. */
+  showLabel: boolean;
   transparent?: boolean;
 }
 
-function Overlay({ element, factor, colour, halfWidthM, inBlock, build, labelAt, label, transparent }: OverlayProps) {
+function Overlay({ element, factor, colour, halfWidthM, inBlock, build, labelAt, label, showLabel, transparent }: OverlayProps) {
   const runtime = useRuntime();
   const lens = useSimulationStore((s) => s.lens);
   const hovered = useSimulationStore((s) => s.hovered === element);
@@ -181,9 +183,11 @@ function Overlay({ element, factor, colour, halfWidthM, inBlock, build, labelAt,
         }}
       />
       <group ref={labelGroup}>
-        <Html center zIndexRange={[20, 0]} className="scene-label-wrap" pointerEvents="none">
-          <span className={`scene-label scene-label--${element}`}>{label}</span>
-        </Html>
+        {showLabel && (
+          <Html center zIndexRange={[20, 0]} className="scene-label-wrap" pointerEvents="none">
+            <span className={`scene-label scene-label--${element}`}>{label}</span>
+          </Html>
+        )}
       </group>
     </>
   );
@@ -241,6 +245,7 @@ export function FeatureOverlays() {
         build={buildRoad}
         labelAt={(p) => [HALF - 5, heightAt(-p.roadDistance, (HALF - 5) * M_PER_UNIT, p) / M_PER_UNIT + 1.6, -p.roadDistance / M_PER_UNIT]}
         label={`Road · ${formatDistance(road)}`}
+        showLabel={roadInBlock(target)}
       />
       <Overlay
         element="stream"
@@ -255,6 +260,7 @@ export function FeatureOverlays() {
           return [v / M_PER_UNIT, heightAt(u, v, p) / M_PER_UNIT + 2, u / M_PER_UNIT];
         }}
         label={`Stream / river · ${formatDistance(stream)}`}
+        showLabel={streamInBlock(target)}
         transparent
       />
       <Overlay
@@ -266,6 +272,7 @@ export function FeatureOverlays() {
         build={buildFault}
         labelAt={faultLabelPoint}
         label={`Lineament · ${formatDistance(fault)}`}
+        showLabel={faultInBlock(target)}
       />
       {!roadInBlock(target) && (
         <OffBlockChip position={[0, edgeY(-HALF_M, 0), -HALF - 1]} text={`↑ Road ${formatDistance(road)} away`} />

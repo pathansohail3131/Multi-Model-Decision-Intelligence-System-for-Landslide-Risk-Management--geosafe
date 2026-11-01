@@ -88,10 +88,10 @@ export function ScenarioSource() {
           <button type="button" className="btn btn--wide" disabled={disabled} onClick={() => setDistrictOpen(true)}>
             <MapIcon /> Pick a real site on the district map
           </button>
-          <button type="button" className="btn btn--sm" title={RECORDED_TOOLTIP} disabled={disabled || loading !== null} onClick={() => loadSample(1)}>
+          <button type="button" className="btn btn--sm btn--wide" title={RECORDED_TOOLTIP} disabled={disabled || loading !== null} onClick={() => loadSample(1)}>
             {loading === 1 ? <span className="spinner" /> : <FlagIcon />} Recorded landslide (GSI)
           </button>
-          <button type="button" className="btn btn--sm" title={NOT_RECORDED_TOOLTIP} disabled={disabled || loading !== null} onClick={() => loadSample(0)}>
+          <button type="button" className="btn btn--sm btn--wide" title={NOT_RECORDED_TOOLTIP} disabled={disabled || loading !== null} onClick={() => loadSample(0)}>
             {loading === 0 ? <span className="spinner" /> : <DiceIcon />} No recorded landslide
           </button>
           <button
